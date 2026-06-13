@@ -21,6 +21,7 @@ ESP32MQTTClient mqtt;
 // | -   | GND    |
 // | C   | GPIO22 | blue
 // | D   | GPIO21 | green
+// | IRQ | GPIO2  | dark green
 // +-----+--------+
 #define ENABLE_DBG
 #include <DFRobot_AS3935_I2C.h>
@@ -29,13 +30,18 @@ ESP32MQTTClient mqtt;
 #define I2C_SDA 21
 #define I2C_SCL 22
 
-DFRobot_AS3935_I2C lightning(LIGHTING_IRQ);
+DFRobot_AS3935_I2C lightning(LIGHTING_IRQ, AS3935_ADD3);
 
 #include "LightningMQTT.hpp"
 LightningMQTT lightningMQTT(lightning, mqtt);
 
-void setup()
-{
+volatile bool isr_triggered = false;
+
+void IRAM_ATTR AS3935_ISR() {
+  isr_triggered = true;
+}
+
+void setup() {
   Serial.begin(115200);
   setupNetwork();
   setupMqtt();
@@ -69,7 +75,8 @@ void setupMqtt() {
 
 void setupLightning() {
   Wire.setPins(I2C_SDA, I2C_SCL);
-  lightning.setI2CAddress(LIGHTING_ADDRESS);
+
+  attachInterrupt(digitalPinToInterrupt(LIGHTING_IRQ), AS3935_ISR, RISING);
 
   while (lightning.begin() != 0) {
     delay(10);
@@ -79,6 +86,10 @@ void setupLightning() {
 }
 
 void loop() {
+  while (!isr_triggered) {
+    delay(10);
+  }
+  isr_triggered = false;
   delay(10);
   
   uint8_t interruptSource = lightning.getInterruptSrc();
