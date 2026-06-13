@@ -9,7 +9,7 @@ private:
   ESP32MQTTClient &mqtt;
 
   struct Config {
-    bool disturberDetection = true;
+    bool disturberDetection = false;
     uint8_t noiseFloorLevel = 2;
     uint8_t watchdogThreshold = 2;
     uint8_t spikeRejection = 2;
